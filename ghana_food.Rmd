@@ -1,0 +1,26 @@
+---
+title: "  "
+output: html_notebook
+---
+
+### Where does Ghana's exported fruit come from?
+
+#### Analysing data from Food and Agriculture Organization (FAO) bilateral trade database 1986-2019
+
+```{r load global packages, include=FALSE}
+library(tidylog)
+library(tidyverse)
+
+library(tinytex)
+
+library(labelled)
+```
+
+```{r load data, include=FALSE}
+dat<-read.csv("ghana_fruits.csv",stringsAsFactors=T)
+
+```
+
+```{r}
+
+```
