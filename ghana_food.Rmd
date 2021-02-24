@@ -3,9 +3,11 @@ title: "  "
 output: html_notebook
 ---
 
-### Where does Ghana's exported fruit come from?
+### Where does Ghana's imported fruit come from?
 
-#### Analysing data from Food and Agriculture Organization (FAO) bilateral trade database 1986-2019
+#### Analyzing data from Food and Agriculture Organization (FAO) bilateral trade database 1998-2019
+
+#### By: Ama Owusu-Darko
 
 ```{r load global packages, include=FALSE}
 library(tidylog)
@@ -17,10 +19,245 @@ library(labelled)
 ```
 
 ```{r load data, include=FALSE}
-dat<-read.csv("ghana_fruits.csv",stringsAsFactors=T)
+dat<- read.csv("~/r_and_git/Food_trade/good_fruits.csv", stringsAsFactors=TRUE)
+
+
 
 ```
 
-```{r}
+```{r glance data, include=FALSE}
+#summary(dat)
+```
+
+```{r eda ,include=FALSE, eval=F}
+dat<-as_tibble(dat)
+dat$
+dat1<-dat%>%
+  mutate(across(c(Year,Item.Code,Element.Code,Partner.Country.Code,Reporter.Country.Code,ï..Domain.Code),as_factor))
+         
+#removing duplicate columns
+dat2<-dat1%>%
+  select(-c(Year.Code,Item.Code,Element.Code,Partner.Country.Code,Reporter.Country.Code,ï..Domain.Code))
+```
+
+```{r group_by, include=FALSE}
+dat3<-dat2%>%
+  filter(Element=="Import Quantity")%>%
+  group_by(Partner.Countries,Item, Element, Year)
+head(dat3)
+
+#Select import quantity because the value of dollars change because of inflation over the years
+dat4<-dat2%>%
+  filter(Element=="Import Quantity")%>%
+  group_by(Year,Partner.Countries) %>% 
+  summarise(Value)
+head(dat4)
+
+```
+
+**Assumption:**
+Import quantities (measured in tonnes) are considered in the analysis
+
+
+
+```{r countries did Ghana import from, echo=FALSE, message=FALSE, warning=FALSE}
+#remove value==0
+imp<-dat2%>%
+  filter(Element=="Import Quantity" & Value!=0 & Unit=="tonnes")
+  
+
+im<-dat2%>%
+  filter(Element=="Import Quantity" & Value!=0 & Unit=="tonnes")%>%
+  count(Year)%>%
+  ggplot()+geom_bar(aes(x=year))+coord_flip()
+
+
+imp1<-dat2%>%
+  filter(Element=="Import Quantity"& Value!=0 & Unit=="tonnes")%>%
+  group_by(Partner.Countries)%>%
+  summarize(Per_country=n())
+
+
+
+```
+
+<br> **Question: Which countries exported the most fruit to Ghana during 1998-2019?**
+
+```{r 5 exporters, echo=FALSE, message=FALSE, warning=F}
+try_c=function(fun1){
+ imp1%>%
+  fun1(Per_country,n=5)%>%
+  ggplot(aes(x=Partner.Countries, y=Per_country, fill=Partner.Countries))+geom_col()+
+  scale_fill_brewer(palette="Set3")+
+    geom_label(aes(label=Per_country),color="white",fill="black")+
+    labs(title="The 5 Most Frequent Exporters of fruits to Ghana",
+         subtitle="Values represent count of exports to Ghana")
+}
+
+try_c(slice_max)
+
+
+try_v=function(){
+imp1%>%
+  slice_max(Per_Country,n=5)%>%
+  ggplot(aes(x=Partner.Countries, y=Per_country, fill=Partner.Countries))+geom_col()+
+  scale_fill_brewer(palette="Set3")+
+    geom_label(aes(label=Per_Country),color="white",fill="black")+
+    labs(title="The 5 Most Frequent Exporters of fruits to Ghana",
+         subtitle="Values frquency of exports to Ghana")
+}
+
+#try_v(slice_max)
+
+#five_exp=imp1%>%
+  #slice_max(Per_country,n=5)
+
+only_top5=imp%>%
+  add_count(Partner.Countries)%>%
+  filter(dense_rank(desc(n))<=5)%>%
+  group_by(Partner.Countries,Item)%>%
+  summarize(Per_item=n())%>%
+  slice_max(Per_item, n=5)
+```
+
+```{rk, include=F}
+only_top5%>%
+  ggplot(aes(x=Item,y=Per_item, fill=Partner.Countries))+geom_col()+
+scale_fill_brewer(palette="Set3")+facet_wrap(~Partner.Countries, scales = "free", ncol=5)+
+geom_label(aes(label=Per_item),color="white",fill="black")+
+labs(title="The 5 Most Imported fruits from  to Ghana",
+subtitle="Values represent Frequency")+theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+```{r include=FALSE}
+b=nly_top5%>%
+  group_by(Year,Item)%>%
+  summarize(Per_item=n())%>%
+  slice_max(Per_item, n=5)
+```
+
+```{r include=FALSE}
+library(gtsummary)
+theme_gtsummary_journal(journal = "jama")
+#> Setting `JAMA` theme
+theme_gtsummary_compact()
+#> Setting `Compact` theme
+gt1 <- 
+  dat2%>%
+  select(Value)%>%
+  tbl_summary()
+    
+gt1
+
+
+dat5<-dat2%>%
+mutate(cat_Value = ifelse(Value>10000,"High tonnage", ifelse(Value>1000,"Medium_tonnage",ifelse(Value>100,"Small_tonnage",                                "Very_Small_tonnage"))))
+  
+dat5$cat_Value<-factor(dat5$cat_Value, levels=c("Very_Small_tonnage",
+               "Small_tonnage","Medium_tonnage","High tonnage"))
+
+nly_top5=imp%>%
+  select(2,3,5,6,Value,Unit)%>%
+  group_by(Partner.Countries,Item, Value)%>%
+  filter(Value>300)
+
+f=nly_top5%>% 
+  group_by(Partner.Countries)%>%
+  count(Partner.Countries)
+
+
+
+  #filter(dense_rank(desc(n))<=5)%>%
+  #group_by(Partner.Countries,Item)%>%
+ # summarize(Per_item=n())%>%
+ # slice_max(Per_item, n=5)
+#d=imp%>%
+  
+ # tidycomm::crosstab(Year,Partner.Countries,Item,Value,add_total = TRUE)
+```
+
+**Question: How many tons of fruit does Ghana normally import?**
+
+
+Records of nine fruits were selected from Food and Agriculture Organization (FAO) bilateral trade database 1998-2019.
+
+```{r 1, echo=FALSE, message=FALSE, warning=FALSE}
+levels(imp$Item)
+
+```
+
+**The summary statistics of the number of tonnes of fruit imported by Ghana** 
+```{r sum, echo=FALSE}
+summary(imp$Value)
+```
+The results above reveals the following insights.<br>
+**Max value**<br>
+The highest quantity of fruits Ghana imported over 1998 to 2019 was **13,778 tonnes.**  
+<br>
+**Mean value**<br>
+Over the 20 years (1998-2019), an **average of 384.4 tonnes of fruit** was imported into Ghana.
+
+<br>
+The following table shows the years in which Ghana's highest fruit imports occurred.
+
+
+
+
+```{r 5, echo=FALSE, message=FALSE, warning=FALSE}
+try_b=tibble(Item=c("Tomatoes","Apples","Pineapples","Grapes","Banana"),
+             Year=c(2007,2013,2014,2013,2007),
+             Value=c(13778,9656,472,403,327 ),
+             Unit=c("tonnes","tonnes","tonnes","tonnes","tonnes"),
+             Partner.Countries=c("Burkina Faso", "South Africa","Cote d'Ivoire",
+                                 "South Africa","Cote d'Ivoire"))
+#DT::datatable(dat2%>%
+ # select(Item,Year,Value,Unit)%>%
+ #filter(dense_rank(desc(Value))<=5))
+
+#Item,Value,Year
+try_y=imp%>%select(Item,Year,Value,Unit,Partner.Countries)%>%
+            group_by(Year)%>%
+            #slice_max(Item)
+            filter(dense_rank(desc(Item))<=5)
+
+#reactable(try_y,
+          #defaultSorted = "Value",
+         # defaultSortOrder = "desc",
+          #filterable = T,
+          #defaultPageSize = 20)
+
+
+          
+
+```
+
+```{r 2,echo=FALSE, message=FALSE, warning=FALSE}
+library(DT)
+datatable(try_b)
+#summary(dat5$cat_Value)
+```
+
+```{r 3, message=FALSE, warning=FALSE, include=FALSE}
+reactable::reactable(f)
+```
+
+```{r try, eval=FALSE, include=FALSE}
+try_select=function(x){
+  only_top5%>%
+  filter(Partner.Countries==x)%>%
+  ggplot(aes(x=Item,y=Per_item, fill=Item))+geom_col()+
+scale_fill_brewer(palette="Set2")+
+geom_label(aes(label=Per_item),color="white",fill="black")+
+labs(title="The 5 Most Imported fruits from  to Ghana",
+subtitle="Values represent Frequency")
+}
+
+try_select("South Africa") 
+try_select("France")
+try_select("Netherlands")
+try_select("Belgium")
+try_select("Egypt")
 
 ```
